@@ -20,7 +20,6 @@ from sklearn.kernel_approximation import RBFSampler
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn_extra.kernel_approximation import Fastfood
-
    
 class deem():
     
@@ -382,16 +381,16 @@ class deem():
             if '-k' in self.debias_method:
                 
                 # standardize embedding
-                scaler = StandardScaler()
-                X_train = scaler.fit_transform(X_train)
-                X_test = scaler.transform(X_test)
+                file = open('models/standScaler_' + embedding + '.pickle', 'rb')
+                Scaler = pickle.load(file)
+                file.close()
+                X_train = Scaler.transform(X_train)
+                X_test = Scaler.transform(X_test)
 
                 # kernelize embedding with fastfood
-                feature_map_transform = Fastfood(n_components=4*X_train.shape[1], random_state=0)
-                param_grid = {'sigma': list(map(lambda x:np.sqrt(1 / (2 * x)), self.classf_param['gamma']))} 
-                scoring = self.classf_param['metric']; cv = self.classf_param['cv']
-                Sampler = GridSearchCV(feature_map_transform, param_grid=param_grid, cv=cv, scoring=scoring)  
-                Sampler.fit(X_train)
+                file = open('models/kernelizer_' + embedding + '.pickle', 'rb')
+                Sampler = pickle.load(file)
+                file.close()
                 X_train = Sampler.transform(X_train)
                 X_test = Sampler.transform(X_test)
 
