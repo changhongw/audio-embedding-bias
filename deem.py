@@ -20,6 +20,7 @@ from sklearn.kernel_approximation import RBFSampler
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn_extra.kernel_approximation import Fastfood
+from sklearn.metrics import pairwise_distances
    
 class deem():
     
@@ -286,8 +287,9 @@ class deem():
         train_set_name, test_set_name = 'irmas', 'openmic' 
         result_all = self.result_all
         
-        globals()['models_'+train_set_name] = pickle.load(open('models/models_' + train_set_name + 
-                                                               '_' + self.embedding + self.debias_method + '.pickle', 'rb'))
+        file = open('models/models_' + train_set_name + '_' + self.embedding + self.debias_method + '.pickle', 'rb')
+        globals()['models_'+train_set_name] = pickle.load(file)
+        file.close()
 
         # iterate over all istrument classes, and fit a model for each one
         for instrument in self.class_align:
@@ -335,8 +337,9 @@ class deem():
         train_set_name, test_set_name = 'openmic', 'irmas' 
         result_all = self.result_all
         
-        globals()['models_'+train_set_name] = pickle.load(open('models/models_' + train_set_name + 
-                                                               '_' + self.embedding + self.debias_method + '.pickle', 'rb'))
+        file = open('models/models_' + train_set_name + '_' + self.embedding + self.debias_method + '.pickle', 'rb')
+        globals()['models_'+train_set_name] = pickle.load(file)
+        file.close()
 
         # iterate over all istrument classes, and fit a model for each one
         for instrument in self.class_align:
@@ -375,23 +378,19 @@ class deem():
         X_train, X_test = train_data[0], test_data[0]
         embedding = self.embedding
         
+        Scaler = StandardScaler()
+        X_train = Scaler.fit_transform(X_train)
+        X_test = Scaler.transform(X_test)
+        
         if self.debias_method != '':
 
             # load separation direction
             if '-k' in self.debias_method:
-                
-                # standardize embedding
-                file = open('models/standScaler_' + embedding + '.pickle', 'rb')
-                Scaler = pickle.load(file)
-                file.close()
-                X_train = Scaler.transform(X_train)
-                X_test = Scaler.transform(X_test)
 
                 # kernelize embedding with fastfood
-                file = open('models/kernelizer_' + embedding + '.pickle', 'rb')
-                Sampler = pickle.load(file)
-                file.close()
-                X_train = Sampler.transform(X_train)
+                Sampler = Fastfood(n_components=4*X_train.shape[1], random_state=0,
+                                                sigma=np.median(pairwise_distances(X_train, metric='l2')))
+                X_train = Sampler.fit_transform(X_train)
                 X_test = Sampler.transform(X_test)
 
                 if 'lda' in self.debias_method and 'genre' in self.debias_method: # -klda-genre
@@ -416,18 +415,18 @@ class deem():
 
         # project out separation direction
         if 'lda' in self.debias_method and 'genre' in self.debias_method:
-            W = globals()['LDAcoef_' + embedding]
+            W = globals()['LDAcoef_' + embedding].copy()
             U, s, V = la.svd(W, full_matrices=False)
             A = np.dot(V.T, V)
-            X_train = X_train.dot(np.eye(len(A)) - A)
-            X_test = X_test.dot(np.eye(len(A)) - A)
+            X_train = X_train.dot(np.eye(len(A)) - A).copy()
+            X_test = X_test.dot(np.eye(len(A)) - A).copy()
 
         elif 'lda' in self.debias_method and 'genre' not in self.debias_method:
-            v = globals()['LDAcoef_' + embedding]
+            v = globals()['LDAcoef_' + embedding].copy()
             v /= np.sqrt(np.sum(v**2))
             A = np.outer(v, v)
-            X_train = X_train.dot(np.eye(len(A)) - A)
-            X_test = X_test.dot(np.eye(len(A)) - A)
+            X_train = X_train.dot(np.eye(len(A)) - A).copy()
+            X_test = X_test.dot(np.eye(len(A)) - A).copy()
         
         return X_train, X_test
            
