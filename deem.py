@@ -1,28 +1,17 @@
-
-
-import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
-import librosa
 from tqdm import tqdm
-import json
 import pandas as pd
 import pickle
-import os
 import h5py
-import collections as cl
-from ast import literal_eval
-import warnings
-warnings.filterwarnings('ignore')
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
-from sklearn.preprocessing import StandardScaler
 import random
-import re
-from sklearn.preprocessing import LabelEncoder
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+import warnings
+warnings.filterwarnings('ignore')
 
 random.seed(42)
 
@@ -99,8 +88,7 @@ class deem():
         (X_train_B, Y_train_B), (X_test_B, Y_test_B), (genre_train_B, genre_test_B) = B_feature
         
         print('Train on {}, test on {}'.format(train_set, test_set))
-        # We'll iterate over all istrument classes, and fit a model for each one
-        # After training, we'll print a classification report for each instrument
+
         for instrument in tqdm(self.instrument_map):
             
             Y_train_A_inst = Y_train_A==instrument
@@ -154,6 +142,7 @@ class deem():
 
             if self.debias_method == '-lda':
                 ############### LDA ###############
+                # project the separation direction of the instrument class
                 X_train_conca = np.vstack((X_train_A_inst, X_train_B_inst))
                 Y_A = np.zeros(len(X_train_A_inst))
                 Y_B = np.ones(len(X_train_B_inst))
