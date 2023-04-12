@@ -42,22 +42,13 @@ with open("instrument_map.json", "r") as f: # only consider 10 classes of Openmi
 
 
 embedding = 'vggish'
-debias_method = ''
+debias_method = '-k'
 
 deb = deem(embedding = embedding, debias_method = debias_method, feature_dir='./embeddings.h5', 
            instrument_map=instrument_map, genre_map=genre_map, param_grid=param_grid, class_align=class_align)
 
 irmas_feature = deb.load_irmas()
 openmic_feature = deb.load_openmic()
-
-deb.instrument_classfication(train_set='irmas', test_set='irmas', irmas_feature=irmas_feature, openmic_feature=openmic_feature)
-deb.instrument_classfication(train_set='irmas', test_set='openmic', irmas_feature=irmas_feature, openmic_feature=openmic_feature)
-deb.instrument_classfication(train_set='openmic', test_set='openmic', irmas_feature=irmas_feature, openmic_feature=openmic_feature)
-deb.instrument_classfication(train_set='openmic', test_set='irmas', irmas_feature=irmas_feature, openmic_feature=openmic_feature)
-
-debias_method = '-lda'
-
-deb.debias_method = debias_method
 
 deb.instrument_classfication(train_set='irmas', test_set='irmas', irmas_feature=irmas_feature, openmic_feature=openmic_feature)
 deb.instrument_classfication(train_set='irmas', test_set='openmic', irmas_feature=irmas_feature, openmic_feature=openmic_feature)

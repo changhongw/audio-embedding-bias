@@ -12,6 +12,13 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from ast import literal_eval
 import re
 import json
+import numpy.linalg as la
+
+from sklearn.kernel_approximation import RBFSampler
+from sklearn.linear_model import SGDClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn_extra.kernel_approximation import Fastfood
+from sklearn.metrics import pairwise_distances
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -112,18 +119,20 @@ class deem():
         genre_train_irmas = ["jazz_blue" if item =="jaz_blu" else item for item in genre_train_irmas]
         genre_train_irmas = ["classical" if item =="cla" else item for item in genre_train_irmas]
         genre_train_irmas = ["country_folk" if item =="cou_fol" else item for item in genre_train_irmas]
-        genre_train_irmas = ["latin_soul" if item =="lat_sou" else item for item in genre_train_irmas]
 
         genre_test_irmas = ["pop_rock" if item =="pop_roc" else item for item in genre_test_irmas]
         genre_test_irmas = ["jazz_blue" if item =="jaz_blu" else item for item in genre_test_irmas]
         genre_test_irmas = ["classical" if item =="cla" else item for item in genre_test_irmas]
         genre_test_irmas = ["country_folk" if item =="cou_fol" else item for item in genre_test_irmas]
-        genre_test_irmas = ["latin_soul" if item =="lat_sou" else item for item in genre_test_irmas]
 
-        genre_train_irmas = np.array(genre_train_irmas)
-        genre_test_irmas = np.array(genre_test_irmas)
+        genre_train_idx = np.array(genre_train_irmas) != "lat_sou"
+        genre_test_idx = np.array(genre_test_irmas) != "lat_sou"
 
-        return (X_train_irmas, Y_train_irmas), (X_test_irmas, Y_test_irmas), (genre_train_irmas, genre_test_irmas)
+        genre_train_irmas = np.array(genre_train_irmas)[genre_train_idx]
+        genre_test_irmas = np.array(genre_test_irmas)[genre_test_idx]
+
+        return (X_train_irmas[genre_train_idx], Y_train_irmas[genre_train_idx]), \
+            (X_test_irmas[genre_test_idx], Y_test_irmas[genre_test_idx]), (genre_train_irmas, genre_test_irmas)
     
 
     def load_openmic(self):
@@ -274,9 +283,9 @@ class deem():
     
 
     def instrument_classfication(self, train_set, test_set, irmas_feature, openmic_feature):
-        if train_set == test_set and self.debias_method == '':
+        if train_set == test_set and (self.debias_method == '' or self.debias_method == '-k'):
             globals()['models_' + train_set] = dict()
-        elif train_set == test_set and self.debias_method == '-lda':
+        elif train_set == test_set and 'lda' in self.debias_method:
             globals()['LDAcoef_' + train_set] = dict()
 
         (X_train_irmas, Y_train_irmas), (X_test_irmas, Y_test_irmas), (genre_train_irmas, genre_test_irmas) = irmas_feature
@@ -352,6 +361,21 @@ class deem():
             X_train_inst_openmic = np.vstack((X_train_inst_openmic_true, X_train_inst_openmic_false))
             Y_train_inst_openmic = np.array([[True] * len(X_train_inst_openmic_true) + [False] * len(X_train_inst_openmic_false)]).reshape(-1,)
 
+            if 'k' in self.debias_method:
+
+                X_all = np.vstack((X_train_inst_irmas, X_train_inst_openmic))
+                # kernelize embedding with fastfood
+                Sampler = Fastfood(n_components=4*X_all.shape[1], random_state=0,
+                                                sigma=np.median(pairwise_distances(X_all, metric='l2')))
+                X_all = Sampler.fit_transform(X_all)
+                X_train_inst_irmas = X_all[:len(X_train_inst_irmas)]
+                X_train_inst_openmic = X_all[len(X_train_inst_irmas):]
+                X_train_inst_irmas_true = X_train_inst_irmas[:len(X_train_inst_irmas_true)]
+                X_train_inst_openmic_true = X_train_inst_openmic[:len(X_train_inst_openmic_true)]
+
+                X_test_inst_irmas = Sampler.transform(X_test_inst_irmas)
+                X_test_inst_openmic = Sampler.transform(X_test_inst_openmic)
+
             if train_set == 'irmas' and test_set == 'irmas':
                 X_train_clf, Y_train_clf = X_train_inst_irmas, Y_train_inst_irmas
                 X_test_clf, Y_test_clf = X_test_inst_irmas, Y_test_inst_irmas
@@ -365,14 +389,15 @@ class deem():
                 X_train_clf, Y_train_clf = X_train_inst_openmic, Y_train_inst_openmic
                 X_test_clf, Y_test_clf = X_test_inst_irmas, Y_test_inst_irmas
 
-            if self.debias_method == '-lda':
-                ############### LDA ###############
-                # project the separation direction of the instrument class
-                X_train_conca = np.vstack((X_train_inst_irmas_true, X_train_inst_openmic_true))
-                Y_A = np.zeros(len(X_train_inst_irmas_true))
-                Y_B = np.ones(len(X_train_inst_openmic_true))
-                Y_conca = np.hstack((Y_A, Y_B))
+            ############### LDA ###############
+            # project the separation direction of the instrument class
+            X_train_conca = np.vstack((X_train_inst_irmas_true, X_train_inst_openmic_true))
+            genre_train_conca = np.hstack((genre_train_inst_irmas_true, genre_train_inst_openmic_true))
+            Y_A = np.zeros(len(X_train_inst_irmas_true))
+            Y_B = np.ones(len(X_train_inst_openmic_true))
+            Y_conca = np.hstack((Y_A, Y_B))
 
+            if self.debias_method == '-lda':
                 LDA = LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto')
                 LDA.fit(X_train_conca, Y_conca)
 
@@ -382,6 +407,32 @@ class deem():
 
                 X_train_clf = X_train_clf.copy().dot(np.eye(len(A)) - A)
                 X_test_clf = X_test_clf.copy().dot(np.eye(len(A)) - A)
+
+                globals()['LDAcoef_' + train_set][instrument] = LDA.coef_.copy()  
+
+            elif self.debias_method == '-mlda':
+                genre_LDAcoef = []
+                for genre in self.genre_map:
+                    
+                    X_train_conca_sub = X_train_conca[genre_train_conca == genre]
+                    Y_conca_sub = Y_conca[genre_train_conca == genre]
+
+                    LDA = LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto')
+                    LDA.fit(X_train_conca_sub, Y_conca_sub)
+
+                    genre_LDAcoef.append(LDA.coef_.copy())
+
+                genre_LDAcoef = np.squeeze(np.array(genre_LDAcoef))
+
+                W = genre_LDAcoef.copy()
+                U, s, V = la.svd(W, full_matrices=False)
+                A = np.dot(V.T, V)
+
+                X_train_clf = X_train_clf.copy().dot(np.eye(len(A)) - A)
+                X_test_clf = X_test_clf.copy().dot(np.eye(len(A)) - A)
+
+                globals()['LDAcoef_' + train_set][instrument] = genre_LDAcoef.copy() 
+                
 
             # initialize and a logistic regression model
             LRmodel = LogisticRegression(random_state=self.param_grid['random_state'], penalty='l2', 
@@ -400,9 +451,7 @@ class deem():
             Y_pred_scores = clf.predict_proba(X_test_clf)[:, 1]
             
             if train_set == test_set and self.debias_method == '':
-                globals()['models_' + train_set][instrument] = clf
-            elif train_set == test_set and self.debias_method == '-lda':
-                globals()['LDAcoef_' + train_set][instrument] = LDA.coef_.copy()           
+                globals()['models_' + train_set][instrument] = clf         
 
             # print result for each instrument
             # print('-' * 52); print(instrument); print('\tTEST')
@@ -425,7 +474,7 @@ class deem():
         if train_set == test_set and self.debias_method == '':
             with open('models/models_' + train_set + '_' + self.embedding + self.debias_method + '.pickle', 'wb') as fdesc:
                 pickle.dump(globals()['models_'+train_set], fdesc)
-        elif train_set == test_set and self.debias_method == '-lda':
+        elif train_set == test_set and 'lda' in self.debias_method:
             with open('models/LDAcoef_' + train_set + '_' + self.embedding + self.debias_method + '.pickle', 'wb') as fdesc:
                 pickle.dump(globals()['LDAcoef_'+train_set], fdesc) 
 
