@@ -3,27 +3,35 @@ from tqdm import tqdm
 import pandas as pd
 import pickle
 import h5py
-
+import os
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
 import random
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from ast import literal_eval
+import re
+import json
+import numpy.linalg as la
+
+from sklearn.kernel_approximation import RBFSampler
+from sklearn.linear_model import SGDClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn_extra.kernel_approximation import Fastfood
+from sklearn.metrics import pairwise_distances
 
 import warnings
 warnings.filterwarnings('ignore')
 
-random.seed(42)
-
 class deem():
     
-    def __init__(self, embedding, feature_dir, instrument_map, genre_map, param_grid, debias_method):
-        self.instrument_map = instrument_map 
-        self.genre_map = genre_map
-        self.param_grid = param_grid
+    def __init__(self, embedding, debias_method, feature_dir, instrument_map, genre_map, param_grid):
         self.embedding = embedding
         self.debias_method = debias_method
         self.feature_dir = feature_dir
+        self.instrument_map = instrument_map 
+        self.genre_map = genre_map
+        self.param_grid = param_grid
         # use a Pandas DataFrame to record all results and save into a csv file later
         self.result_all =pd.DataFrame({'instrument': [],
                           'train_set': [],
@@ -38,7 +46,7 @@ class deem():
                           'embedding': [],
                          }) 
 
-    def load_feature(self, meta):
+    def load_feature(self, meta, part):
 
         embeddings = h5py.File(self.feature_dir, "r")
 
@@ -55,8 +63,8 @@ class deem():
         feature_clip = np.array(feature_clip)
         print(feature_clip.shape, key_clip.shape)
 
-        key_train = list(meta.loc[(meta['split'] == 'train')]['file_name'])
-        key_test = list(meta.loc[(meta['split'] == 'test')]['file_name'])
+        key_train = list(meta.loc[(meta['subset'] == 'train') & (meta['part'] == part)]['file_name'])
+        key_test = list(meta.loc[(meta['subset'] == 'test') & (meta['part'] == part)]['file_name'])
 
         idx_train = [list(key_clip).index(item) for item in key_train]
         idx_test = [list(key_clip).index(item) for item in key_test]
@@ -69,19 +77,19 @@ class deem():
         X_train = feature_clip[idx_train,:]
         X_test = feature_clip[idx_test]
 
-        Y_train = meta.loc[(meta['split'] == 'train')]['instrument'].values
-        Y_test = meta.loc[(meta['split'] == 'test')]['instrument'].values
+        Y_train = meta.loc[(meta['subset'] == 'train') & (meta['part'] == part)]['instrument'].values
+        Y_test = meta.loc[(meta['subset'] == 'test') & (meta['part'] == part)]['instrument'].values
 
-        genre_train = meta.loc[(meta['split'] == 'train')]['genre'].values
-        genre_test = meta.loc[(meta['split'] == 'test')]['genre'].values
+        genre_train = meta.loc[(meta['subset'] == 'train') & (meta['part'] == part)]['genre'].values
+        genre_test = meta.loc[(meta['subset'] == 'test') & (meta['part'] == part)]['genre'].values
 
         return (X_train, Y_train), (X_test, Y_test), (genre_train, genre_test)
 
 
     def instrument_classfication(self, train_set, test_set, A_feature, B_feature):
-        if train_set == test_set and self.debias_method == '':
+        if train_set == test_set and (self.debias_method == '' or self.debias_method == '-k'):
             globals()['models_' + train_set] = dict()
-        elif train_set == test_set and self.debias_method == '-lda':
+        elif 'lda' in self.debias_method:
             globals()['LDAcoef_' + train_set] = dict()
 
         (X_train_A, Y_train_A), (X_test_A, Y_test_A), (genre_train_A, genre_test_A) = A_feature
@@ -99,6 +107,9 @@ class deem():
 
             X_train_A_inst = X_train_A[Y_train_A_inst]
             X_train_B_inst = X_train_B[Y_train_B_inst]
+
+            X_test_A_inst = X_test_A
+            X_test_B_inst = X_test_B
 
             Y_train_A_noninst = Y_train_A!=instrument
             Y_train_B_noninst = Y_train_B!=instrument
@@ -124,6 +135,9 @@ class deem():
             X_train_A_clf = np.vstack((X_train_A_inst, X_train_A_noninst))
             X_train_B_clf = np.vstack((X_train_B_inst, X_train_B_noninst))
 
+            genre_train_A_clf = np.hstack((genre_train_A_inst, genre_train_A_noninst))
+            genre_train_B_clf = np.hstack((genre_train_B_inst, genre_train_B_noninst))
+
             Y_train_A_clf = np.hstack(([True] * len(X_train_A_inst), [False] * len(X_train_A_noninst))).reshape(-1,)
             Y_train_B_clf = np.hstack(([True] * len(X_train_B_inst), [False] * len(X_train_B_noninst))).reshape(-1,)
 
@@ -140,14 +154,60 @@ class deem():
                 X_train_clf, Y_train_clf = X_train_B_clf, Y_train_B_clf
                 X_test_clf, Y_test_clf = X_test_A, Y_test_A_inst
 
-            if self.debias_method == '-lda':
-                ############### LDA ###############
-                # project the separation direction of the instrument class
-                X_train_conca = np.vstack((X_train_A_inst, X_train_B_inst))
-                Y_A = np.zeros(len(X_train_A_inst))
-                Y_B = np.ones(len(X_train_B_inst))
-                Y_conca = np.hstack((Y_A, Y_B))
+            if 'k' in self.debias_method:
+            
+                scaler = StandardScaler()
+                X_train_A_clf = scaler.fit_transform(X_train_A_clf)
+                X_train_B_clf = scaler.fit_transform(X_train_B_clf)
+                X_train_all = np.vstack((X_train_A_clf, X_train_B_clf))
 
+                # kernelize embedding with fastfood
+                Sampler = Fastfood(n_components=4*X_train_all.shape[1], random_state=self.param_grid['random_state'],
+                                                sigma=np.median(pairwise_distances(X_train_all, metric='l2')))
+                X_train_all = Sampler.fit_transform(X_train_all)  
+                X_train_A_clf = X_train_all[:len(X_train_A_clf)]
+                X_train_B_clf  = X_train_all[len(X_train_A_clf):]
+
+                scaler = StandardScaler()
+                X_train_clf = scaler.fit_transform(X_train_clf)  
+                X_test_clf = scaler.transform(X_test_clf)       
+                X_test_clf = np.nan_to_num(X_test_clf, np.nan)  
+
+                X_train_clf = Sampler.transform(X_train_clf)
+                X_test_clf  = Sampler.transform(X_test_clf)
+
+            ############### LDA ###############
+            # project the separation direction of the instrument class
+            X_train_conca = np.vstack((X_train_A_clf, X_train_B_clf))  
+            genre_train_conca = np.hstack((genre_train_A_clf, genre_train_B_clf))
+            Y_A = np.zeros(len(X_train_A_clf))
+            Y_B = np.ones(len(X_train_B_clf))
+            Y_conca = np.hstack((Y_A, Y_B))
+
+            if 'lda' in self.debias_method and '-m' in self.debias_method:
+                genre_LDAcoef = []
+                for genre in self.genre_map:
+                    
+                    X_train_conca_sub = X_train_conca[genre_train_conca == genre] 
+                    Y_conca_sub = Y_conca[genre_train_conca == genre]  
+
+                    LDA = LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto')
+                    LDA.fit(X_train_conca_sub, Y_conca_sub)
+
+                    genre_LDAcoef.append(LDA.coef_.copy())
+
+                genre_LDAcoef = np.squeeze(np.array(genre_LDAcoef))
+
+                W = genre_LDAcoef.copy()
+                U, s, V = la.svd(W, full_matrices=False)
+                A = np.dot(V.T, V)
+
+                X_train_clf = X_train_clf.copy().dot(np.eye(len(A)) - A)
+                X_test_clf = X_test_clf.copy().dot(np.eye(len(A)) - A)
+
+                globals()['LDAcoef_' + train_set][instrument] = genre_LDAcoef.copy() 
+
+            elif 'lda' in self.debias_method:
                 LDA = LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto')
                 LDA.fit(X_train_conca, Y_conca)
 
@@ -157,6 +217,9 @@ class deem():
 
                 X_train_clf = X_train_clf.copy().dot(np.eye(len(A)) - A)
                 X_test_clf = X_test_clf.copy().dot(np.eye(len(A)) - A)
+
+                globals()['LDAcoef_' + train_set][instrument] = LDA.coef_.copy()  
+
 
             # initialize and a logistic regression model
             LRmodel = LogisticRegression(random_state=self.param_grid['random_state'], penalty='l2', 
@@ -174,10 +237,8 @@ class deem():
             # Get prediction scores for the positive class
             Y_pred_scores = clf.predict_proba(X_test_clf)[:, 1]
             
-            if train_set == test_set and self.debias_method == '':
-                globals()['models_' + train_set][instrument] = clf
-            elif train_set == test_set and self.debias_method == '-lda':
-                globals()['LDAcoef_' + train_set][instrument] = LDA.coef_.copy()           
+            if train_set == test_set and (self.debias_method == '' or self.debias_method == '-k'):
+                globals()['models_' + train_set][instrument] = clf         
 
             # print result for each instrument
             # print('-' * 52); print(instrument); print('\tTEST')
@@ -197,13 +258,12 @@ class deem():
             self.result_all = self.result_all.append(pd.DataFrame(np.expand_dims(np.array(result_inst), axis=0), 
                                                         columns=self.result_all.columns), ignore_index=True)
 
-        if train_set == test_set and self.debias_method == '':
+        if train_set == test_set and (self.debias_method == '' or self.debias_method == '-k'):
             with open('models/models_' + train_set + '_' + self.embedding + self.debias_method + '.pickle', 'wb') as fdesc:
                 pickle.dump(globals()['models_'+train_set], fdesc)
-        elif train_set == test_set and self.debias_method == '-lda':
+        elif train_set == test_set and 'lda' in self.debias_method:
             with open('models/LDAcoef_' + train_set + '_' + self.embedding + self.debias_method + '.pickle', 'wb') as fdesc:
                 pickle.dump(globals()['LDAcoef_'+train_set], fdesc) 
-
 
 
     def resample_data(self, feature, genre, num):
@@ -214,22 +274,14 @@ class deem():
         genre: original genre
         num: target number of samples
         """
+        random.seed(self.param_grid['random_state'])
         
-        feature_all = feature[0,:]
-        genre_all = genre[0]
         ratio =  num / len(feature)  # ratio between target and original => using this ratio to get sample from each genre
         
-        for genre_item in self.genre_map:
-            genre_target = genre == genre_item  
+        idx_shuffle = random.sample(range(feature.shape[0]), feature.shape[0])  # shuffle the idx to select randomly  
+        idx_keep = idx_shuffle[:int(feature.shape[0] * ratio)]  # select "total * ratio" samples from this genre
 
-            len_target = genre_target.sum()  # number of samples of this specific genre
-            idx_shuffle = random.sample(range(len_target), len_target)  # shuffle the idx to select randomly  
-            idx_keep = idx_shuffle[:int(len_target * ratio)]  # select "total * ratio" samples from this genre
+        feature = feature[idx_keep,:]
+        genre = genre[idx_keep]
 
-            feature_new = feature[genre_target][idx_keep]
-            genre_new = genre[genre_target][idx_keep]
-
-            feature_all = np.vstack((feature_all, feature_new))
-            genre_all = np.hstack((genre_all, genre_new))
-
-        return feature_all[1:,], genre_all[1:]
+        return feature, genre
