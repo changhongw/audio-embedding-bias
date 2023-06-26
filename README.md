@@ -3,7 +3,7 @@
 ## Preparation
 
 ### Intall requirements
-`git clone https://github.com/changhongw/examod.git`<br>
+`git clone https://github.com/changhongw/embedding-bias-correction.git`<br>
 `conda env create -f environment.yml`<br>
 `conda activate embedding-bis-correction`
 
