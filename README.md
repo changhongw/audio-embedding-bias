@@ -8,10 +8,10 @@ conda env create -f environment.yml
 conda activate embedding-bis-correction
 
 ### Download dataset
-[https://www.upf.edu/web/mtg/irmas] IRMAS dataset and [https://zenodo.org/record/1432913] OpenMIC dataset
+[IRMAS](https://www.upf.edu/web/mtg/irmas) dataset and [OpenMIC](https://zenodo.org/record/1432913) dataset
 
 ### Pre-trained embedding extraction
-[https://github.com/tensorflow/models/tree/master/research/audioset/vggish] VGGish, [https://github.com/marl/openl3] OpenL3, and [https://github.com/tensorflow/models/tree/master/research/audioset/yamnet] YAMNet
+[VGGish](https://github.com/tensorflow/models/tree/master/research/audioset/vggish), [OpenL3](https://github.com/marl/openl3), and [YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet) 
 
 ## Bias correction
 Run the note books in `scripts`:
