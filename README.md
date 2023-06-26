@@ -3,8 +3,8 @@
 ## Preparation
 
 ### Intall requirements
-`git clone https://github.com/changhongw/examod.git`
-`conda env create -f environment.yml`
+`git clone https://github.com/changhongw/examod.git`<br>
+`conda env create -f environment.yml`<br>
 `conda activate embedding-bis-correction`
 
 ### Download dataset
