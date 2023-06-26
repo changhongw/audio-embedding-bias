@@ -1,4 +1,4 @@
-# Eembedding Bias Correction
+# Debiasing embeddings (Deem)
 
 ## Preparation
 
