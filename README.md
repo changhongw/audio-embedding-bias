@@ -15,12 +15,12 @@ conda activate embedding-bis-correction
 
 ## Bias correction
 Run the note books in `scripts`:
-- `0_data_distribute.ipynb` :
-- `1_debias_linear.ipynb`
-- `2_debias_nonlinear.ipynb`
-- `3_cosine_similarity.ipynb`
-- `4_performance_change_linear.ipynb`
-- `4_performance_change_nonlinear.ipynb`
+- `0_data_distribute.ipynb`: investigate the distribution of each dataset
+- `1_debias_linear.ipynb`: linear bias correction (original, LDA, mLDA)
+- `2_debias_nonlinear.ipynb`: linear bias correction (K, KLDA, mKLDA)
+- `3_cosine_similarity.ipynb`: calculate cosine similarity between dataset separation and instrument classification
+- `4_performance_change_linear.ipynb`: anlayze results for linear case
+- `4_performance_change_nonlinear.ipynb`: anlayze results for nonlinear case
 
 ## Cite
 Changhong Wang, Brian McFee, and Gaël Richard. "Transfer Learning and Bias Correction with Pre-trained Audio Embeddings". International Society for Music Information Retrieval (ISMIR) conference, 2023.
