@@ -3,9 +3,9 @@
 ## Preparation
 
 ### Intall requirements
-git clone https://github.com/changhongw/examod.git
-conda env create -f environment.yml
-conda activate embedding-bis-correction
+`git clone https://github.com/changhongw/examod.git`
+`conda env create -f environment.yml`
+`conda activate embedding-bis-correction`
 
 ### Download dataset
 [IRMAS](https://www.upf.edu/web/mtg/irmas) dataset and [OpenMIC](https://zenodo.org/record/1432913) dataset
