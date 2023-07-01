@@ -1,4 +1,4 @@
-name: deem
+name: embedding-bias
 channels:
   - anaconda
   - intel
@@ -237,4 +237,4 @@ dependencies:
       - websocket-client==1.6.1
       - wordcloud==1.9.2
       - ydata-profiling==4.3.1
-prefix: /home/changhongw/miniconda3/envs/deem
+prefix: /home/changhongw/miniconda3/envs/embedding-bias
