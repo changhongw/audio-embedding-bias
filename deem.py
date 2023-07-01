@@ -14,8 +14,6 @@ import re
 import json
 import numpy.linalg as la
 
-from sklearn.kernel_approximation import RBFSampler
-from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn_extra.kernel_approximation import Fastfood
 from sklearn.metrics import pairwise_distances
@@ -24,11 +22,13 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class deem():
+    """DEEM: DEbiasing pre-trained audio EMbeddings"""
     
     def __init__(self, embedding, debias_method, feature_dir, instrument_map, genre_map, param_grid, class_align=None):
         self.embedding = embedding
         self.debias_method = debias_method
         self.feature_dir = feature_dir
+        self.base_dir = os.path.split(os.path.abspath(feature_dir))[0]
         self.instrument_map = instrument_map 
         self.genre_map = genre_map
         self.param_grid = param_grid
@@ -49,7 +49,7 @@ class deem():
 
 
     def list_match(self, A, B):
-        """match the elements of two lists and return true when there is intersection"""
+        """match the elements of two lists and return true when there is an intersection"""
         ele_A = set(map(str.lower, A))
         ele_B = set(map(str.lower, B))
         return len(ele_A.intersection(ele_B)) > 0
@@ -63,6 +63,8 @@ class deem():
 
         feature = np.array(embeddings["irmas"][self.embedding]["features"])  # (13410, )
         keys_ori = np.array(embeddings["irmas"][self.embedding]["keys"])
+        # # some machine may need the following line of code; please comment out if not the case for you
+        # keys_ori = np.array([str(k, 'utf-8') for k in keys_ori])  
         key_clip = np.unique(keys_ori)  # (6705, )
 
         feature_clip = []
@@ -73,8 +75,8 @@ class deem():
         genre_clip = [item[item.rindex("[")+1:item.rindex("]")] for item in key_clip]
         genre_clip = np.array(genre_clip)
 
-        key_train = set(pd.read_csv("irmas_train.csv", header=None, squeeze=True))
-        key_test = set(pd.read_csv("irmas_test.csv", header=None, squeeze=True))
+        key_train = set(pd.read_csv(os.path.join(self.base_dir, "data/irmas/irmas_train.csv"), header=None, squeeze=True))
+        key_test = set(pd.read_csv(os.path.join(self.base_dir, "data/irmas/irmas_test.csv"), header=None, squeeze=True))
 
         # these loops go through all sample keys, and save their row numbers to either idx_train or idx_test
         idx_train, idx_test = [], []
@@ -132,13 +134,15 @@ class deem():
         """load data of OpenMIC dataset"""
 
         print('Load OpenMIC data:')
-        with open("openmic_classmap_10.json", "r") as f: # only consider 10 classes of Openmic dataset
+        with open(os.path.join(self.base_dir, "data/openmic-2018/openmic_classmap_10.json"), "r") as f: # only consider 10 classes of Openmic dataset
             self.openmic_class_map = json.load(f)
 
         embeddings = h5py.File(self.feature_dir, "r")
 
         feature = np.array(embeddings["openmic"][self.embedding]["features"])
         keys = np.array(embeddings["openmic"][self.embedding]["keys"])
+        # # some machine may need the following line of code; please comment out if not the case for you
+        # keys = np.array([str(k, 'utf-8') for k in keys])  
         key_clip = np.unique(keys)
 
         feature_clip = []
@@ -147,13 +151,12 @@ class deem():
         feature_clip = np.array(feature_clip)   # (20000, )
 
         # key-label map using the information from the dataset source
-        data_root = "openmic-2018/"
         np_load_old = np.load   # save np.load
         np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True,**k)   # modify the default parameters of np.load
 
-        Ytrue = np.load(os.path.join(data_root, "openmic-2018.npz"))["Y_true"]
-        Ymask = np.load(os.path.join(data_root, "openmic-2018.npz"))["Y_mask"]
-        sample_key = np.load(os.path.join(data_root, "openmic-2018.npz"))["sample_key"]
+        Ytrue = np.load(os.path.join(self.base_dir, "data/openmic-2018/openmic-2018.npz"))["Y_true"]
+        Ymask = np.load(os.path.join(self.base_dir, "data/openmic-2018/openmic-2018.npz"))["Y_mask"]
+        sample_key = np.load(os.path.join(self.base_dir, "data/openmic-2018/openmic-2018.npz"))["sample_key"]
 
         np.load = np_load_old   # restore np.load for future normal usage
         del(np_load_old)
@@ -169,8 +172,8 @@ class deem():
         Y_mask = np.squeeze(np.array(Y_mask))
 
         # train-test split
-        train_set = set(pd.read_csv(data_root + "openmic2018_train.csv", header=None, squeeze=True))
-        test_set = set(pd.read_csv(data_root + "openmic2018_test.csv", header=None, squeeze=True))
+        train_set = set(pd.read_csv(os.path.join(self.base_dir, "data/openmic-2018/openmic2018_train.csv"), header=None, squeeze=True))
+        test_set = set(pd.read_csv(os.path.join(self.base_dir, "data/openmic-2018/openmic2018_test.csv"), header=None, squeeze=True))
 
         idx_train, idx_test = [], []
         for idx, n in enumerate(key_clip):
@@ -184,7 +187,7 @@ class deem():
         idx_train = np.asarray(idx_train)
         idx_test = np.asarray(idx_test)
 
-        meta = pd.read_csv(data_root + "openmic-2018-metadata.csv")
+        meta = pd.read_csv(os.path.join(self.base_dir, "data/openmic-2018/openmic-2018-metadata.csv"))
         train_genre_meta = list(meta["track_genres"][idx_train])  # full genre meta: ID, title, url
         test_genre_meta = list(meta["track_genres"][idx_test])
 
@@ -263,6 +266,21 @@ class deem():
     
 
     def instrument_classfication(self, train_set, test_set, irmas_feature, openmic_feature):
+        """ 
+        Binary classification of instruments
+        
+        Args
+        ------
+        train_set: string
+            training set name, i.e. "irmas" or "openmic"
+        test_set: string
+            test set name, i.e. "irmas" or "openmic"
+        irmas_feature: tensor
+            pre-trained embedding feature on IRMAS dataset
+        openmic_feature: tensor
+            pre-trained embedding feature on openmic dataset
+        """
+
         if train_set == test_set and (self.debias_method == '' or self.debias_method == '-k'):
             globals()['models_' + train_set] = dict()
         elif 'lda' in self.debias_method:
@@ -379,9 +397,13 @@ class deem():
                 X_test_clf  = Sampler.transform(X_test_clf)
 
             ############### LDA ###############
-            # project the separation direction of the instrument class
+            # For global bias correction
             X_train_conca = np.vstack((X_train_inst_irmas, X_train_inst_openmic))  # (1252, )
-            genre_train_conca = np.hstack((genre_train_inst_irmas, genre_train_inst_openmic))
+            genre_train_conca = np.hstack((genre_train_inst_irmas, genre_train_inst_openmic))   
+            # # For class-wise bias correction
+            # X_train_conca = np.vstack((X_train_inst_irmas_true, X_train_inst_openmic_true))  
+            # genre_train_conca = np.hstack((genre_train_inst_irmas_true, genre_train_inst_openmic_true))
+
             Y_A = np.zeros(len(X_train_inst_irmas))
             Y_B = np.ones(len(X_train_inst_openmic))
             Y_conca = np.hstack((Y_A, Y_B))
@@ -456,20 +478,25 @@ class deem():
                                                         columns=self.result_all.columns), ignore_index=True)
 
         if train_set == test_set and (self.debias_method == '' or self.debias_method == '-k'):
-            with open('models/models_' + train_set + '_' + self.embedding + self.debias_method + '.pickle', 'wb') as fdesc:
+            with open(os.path.join(self.base_dir, 'models/models_' + train_set + '_' + self.embedding + self.debias_method + '.pickle'), 'wb') as fdesc:
                 pickle.dump(globals()['models_'+train_set], fdesc)
         elif train_set == test_set and 'lda' in self.debias_method:
-            with open('models/LDAcoef_' + train_set + '_' + self.embedding + self.debias_method + '.pickle', 'wb') as fdesc:
+            with open(os.path.join(self.base_dir, 'models/LDAcoef_' + train_set + '_' + self.embedding + self.debias_method + '.pickle'), 'wb') as fdesc:
                 pickle.dump(globals()['LDAcoef_'+train_set], fdesc) 
 
 
     def resample_data(self, feature, genre, num):
         """
-        select "num" number of samples from original feature with the same genre distribution
+        Select "num" number of samples from original feature with the same genre distribution
+
+        Args
         ------
-        feature: original feature
-        genre: original genre
-        num: target number of samples
+        feature: tensor
+            original pre-trained embedding feature
+        genre: list
+            original genre name
+        num: int 
+            target number of samples
         """
         random.seed(self.param_grid['random_state'])
 
