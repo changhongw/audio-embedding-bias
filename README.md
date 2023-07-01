@@ -4,8 +4,6 @@ Implementation of the bias correction methods for pretrained audio embeddings pr
 
 Changhong Wang, Brian McFee, and Gaël Richard. "Transfer Learning and Bias Correction with Pre-trained Audio Embeddings". _Proceedings of the International Society for Music Information Retrieval (ISMIR) Conference_, 2023. 
 
-(Ps: deem is an acronym for "**de**biasing **em**beddings")
-
 ## Content
 
 - [Installation](#installation)
