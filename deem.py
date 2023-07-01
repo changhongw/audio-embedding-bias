@@ -22,7 +22,11 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class deem():
+<<<<<<< Updated upstream
     """DEEM: DEbiasing pre-trained EMbeddings"""
+=======
+    """DEEM: DEbiasing pre-trained audio EMbeddings"""
+>>>>>>> Stashed changes
     
     def __init__(self, embedding, debias_method, feature_dir, instrument_map, genre_map, param_grid, class_align=None):
         self.embedding = embedding
@@ -63,8 +67,13 @@ class deem():
 
         feature = np.array(embeddings["irmas"][self.embedding]["features"])  # (13410, )
         keys_ori = np.array(embeddings["irmas"][self.embedding]["keys"])
+<<<<<<< Updated upstream
         # some machine needs the following line of code; please comment out if not the case for you
         keys_ori = np.array([str(k, 'utf-8') for k in keys_ori])  
+=======
+        # # some machine may need the following line of code; please comment out if not the case for you
+        # keys_ori = np.array([str(k, 'utf-8') for k in keys_ori])  
+>>>>>>> Stashed changes
         key_clip = np.unique(keys_ori)  # (6705, )
 
         feature_clip = []
@@ -141,8 +150,13 @@ class deem():
 
         feature = np.array(embeddings["openmic"][self.embedding]["features"])
         keys = np.array(embeddings["openmic"][self.embedding]["keys"])
+<<<<<<< Updated upstream
         # some machine needs the following line of code; please comment out if not the case for you
         keys = np.array([str(k, 'utf-8') for k in keys])  
+=======
+        # # some machine may need the following line of code; please comment out if not the case for you
+        # keys = np.array([str(k, 'utf-8') for k in keys])  
+>>>>>>> Stashed changes
         key_clip = np.unique(keys)
 
         feature_clip = []
@@ -397,9 +411,13 @@ class deem():
                 X_test_clf  = Sampler.transform(X_test_clf)
 
             ############### LDA ###############
-            # project the separation direction of the instrument class
+            # For global bias correction
             X_train_conca = np.vstack((X_train_inst_irmas, X_train_inst_openmic))  # (1252, )
-            genre_train_conca = np.hstack((genre_train_inst_irmas, genre_train_inst_openmic))
+            genre_train_conca = np.hstack((genre_train_inst_irmas, genre_train_inst_openmic))   
+            # # For class-wise bias correction
+            # X_train_conca = np.vstack((X_train_inst_irmas_true, X_train_inst_openmic_true))  
+            # genre_train_conca = np.hstack((genre_train_inst_irmas_true, genre_train_inst_openmic_true))
+
             Y_A = np.zeros(len(X_train_inst_irmas))
             Y_B = np.ones(len(X_train_inst_openmic))
             Y_conca = np.hstack((Y_A, Y_B))
