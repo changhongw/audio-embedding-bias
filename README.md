@@ -26,7 +26,7 @@ conda activate deem
 
 ## Datasets
 
-Download [IRMAS](https://www.upf.edu/web/mtg/irmas) and [OpenMIC](https://zenodo.org/record/1432913) datasets and save into the directories `./data/irmas` and `./data/openmic-2018`, respectively.
+Download [IRMAS](https://www.upf.edu/web/mtg/irmas) and [OpenMIC](https://zenodo.org/record/1432913) datasets and save as directories `./data/irmas` and `./data/openmic-2018`, respectively.
 
 ## Pre-trained embeddings
 
