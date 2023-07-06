@@ -24,7 +24,7 @@ warnings.filterwarnings('ignore')
 class deem():
     """DEEM: DEbiasing pre-trained audio EMbeddings"""
     
-    def __init__(self, embedding, debias_method, feature_dir, instrument_map, genre_map, param_grid, class_align=None):
+    def __init__(self, embedding, debias_method, feature_dir, instrument_map, genre_map, param_grid, class_align=None, add_info=None):
         self.embedding = embedding
         self.debias_method = debias_method
         self.feature_dir = feature_dir
@@ -33,6 +33,7 @@ class deem():
         self.genre_map = genre_map
         self.param_grid = param_grid
         self.class_align = class_align
+        self.add_info = add_info
         # use a Pandas DataFrame to record all results and save into a csv file later
         self.result_all =pd.DataFrame({'instrument': [],
                           'train_set': [],
@@ -50,9 +51,38 @@ class deem():
 
     def list_match(self, A, B):
         """match the elements of two lists and return true when there is an intersection"""
+
         ele_A = set(map(str.lower, A))
         ele_B = set(map(str.lower, B))
         return len(ele_A.intersection(ele_B)) > 0
+
+
+    def genre_extract(self, genre_meta):
+        """extract genre information from meta file"""
+
+        idx_genre = []
+        genre_temp = []
+        for k in tqdm(range(len(genre_meta))):
+            if isinstance(genre_meta[k], str):  # this track has genre information
+                idx_genre.append(k)
+                genre_excerpt = literal_eval(genre_meta[k])  # split multiple genre labels
+                genre_temp.append([item['genre_title']for item in genre_excerpt]) # append all genre labels
+        idx_genre = np.array(idx_genre)  # all indices with genre annotation: 14581
+       
+        # transfer multiple genre labels into single genre label for each audio except
+        genre_final = []  
+        for genre_excerpt in genre_temp:
+            item_genre = []
+            for item in genre_excerpt:
+                for genre in self.genre_map:
+                    if self.list_match(re.split("[^a-zA-Z]", item), re.split("[^a-zA-Z]", genre)):
+                        item_genre.append(genre)
+            if len(item_genre) > 0:
+                genre_final.append(item_genre[0])
+            else:
+                genre_final.append(genre_excerpt[0])
+
+        return idx_genre, genre_final
 
 
     def load_irmas(self):
@@ -63,8 +93,8 @@ class deem():
 
         feature = np.array(embeddings["irmas"][self.embedding]["features"])  # (13410, )
         keys_ori = np.array(embeddings["irmas"][self.embedding]["keys"])
-        # # some machine may need the following line of code; please comment out if not the case for you
-        # keys_ori = np.array([str(k, 'utf-8') for k in keys_ori])  
+        # some machine may need the following line of code; please comment out if not the case for you
+        keys_ori = np.array([str(k, 'utf-8') for k in keys_ori])  
         key_clip = np.unique(keys_ori)  # (6705, )
 
         feature_clip = []
@@ -108,15 +138,12 @@ class deem():
         genre_train_irmas = genre_clip[idx_train]
         genre_test_irmas = genre_clip[idx_test]
 
-        genre_train_irmas = ["pop_rock" if item =="pop_roc" else item for item in genre_train_irmas]
-        genre_train_irmas = ["jazz_blue" if item =="jaz_blu" else item for item in genre_train_irmas]
-        genre_train_irmas = ["classical" if item =="cla" else item for item in genre_train_irmas]
-        genre_train_irmas = ["country_folk" if item =="cou_fol" else item for item in genre_train_irmas]
-
-        genre_test_irmas = ["pop_rock" if item =="pop_roc" else item for item in genre_test_irmas]
-        genre_test_irmas = ["jazz_blue" if item =="jaz_blu" else item for item in genre_test_irmas]
-        genre_test_irmas = ["classical" if item =="cla" else item for item in genre_test_irmas]
-        genre_test_irmas = ["country_folk" if item =="cou_fol" else item for item in genre_test_irmas]
+        irmas_genre = {"pop_rock": "pop_roc", "jazz_blue": "jaz_blu", 
+                       "classical": "cla", "country_folk": "cou_fol"}   
+        
+        for item in irmas_genre:
+            genre_train_irmas = [item if x == irmas_genre[item] else x for x in genre_train_irmas]
+            genre_test_irmas = [item if x == irmas_genre[item] else x for x in genre_test_irmas]
 
         genre_train_idx = np.array(genre_train_irmas) != "lat_sou"
         genre_test_idx = np.array(genre_test_irmas) != "lat_sou"
@@ -141,8 +168,8 @@ class deem():
 
         feature = np.array(embeddings["openmic"][self.embedding]["features"])
         keys = np.array(embeddings["openmic"][self.embedding]["keys"])
-        # # some machine may need the following line of code; please comment out if not the case for you
-        # keys = np.array([str(k, 'utf-8') for k in keys])  
+        # some machine may need the following line of code; please comment out if not the case for you
+        keys = np.array([str(k, 'utf-8') for k in keys])  
         key_clip = np.unique(keys)
 
         feature_clip = []
@@ -191,48 +218,8 @@ class deem():
         train_genre_meta = list(meta["track_genres"][idx_train])  # full genre meta: ID, title, url
         test_genre_meta = list(meta["track_genres"][idx_test])
 
-        idx_genre_train = []
-        genre_train_openmic = []
-        for k in tqdm(range(len(train_genre_meta))):
-            if isinstance(train_genre_meta[k], str):  # this track has genre information
-                idx_genre_train.append(k)
-                genre_excerpt = literal_eval(train_genre_meta[k])  # split multiple genre labels
-                genre_train_openmic.append([item['genre_title']for item in genre_excerpt]) # append all genre labels
-        idx_genre_train = np.array(idx_genre_train)  # all indices with genre annotation: 14581
-
-        idx_genre_test = []
-        genre_test_openmic = []
-        for k in tqdm(range(len(test_genre_meta))):
-            if isinstance(test_genre_meta[k], str):
-                idx_genre_test.append(k)
-                genre_excerpt = literal_eval(test_genre_meta[k])
-                genre_test_openmic.append([item['genre_title']for item in genre_excerpt])
-        idx_genre_test = np.array(idx_genre_test)   # 4911
-
-        # transfer multiple genre labels into single genre label for each audio except
-        genre_train_final = []  
-        for genre_excerpt in genre_train_openmic:
-            item_genre = []
-            for item in genre_excerpt:
-                for genre in self.genre_map:
-                    if self.list_match(re.split("[^a-zA-Z]", item), re.split("[^a-zA-Z]", genre)):
-                        item_genre.append(genre)
-            if len(item_genre) > 0:
-                genre_train_final.append(item_genre[0])
-            else:
-                genre_train_final.append(genre_excerpt[0])
-                
-        genre_test_final = []
-        for genre_excerpt in genre_test_openmic:
-            item_genre = []
-            for item in genre_excerpt:
-                for genre in self.genre_map:
-                    if self.list_match(re.split("[^a-zA-Z]", item), re.split("[^a-zA-Z]", genre)):
-                        item_genre.append(genre)
-            if len(item_genre) > 0:
-                genre_test_final.append(item_genre[0])
-            else:
-                genre_test_final.append(genre_excerpt[0])
+        idx_genre_train, genre_train_final = self.genre_extract(train_genre_meta)
+        idx_genre_test, genre_test_final = self.genre_extract(test_genre_meta)
 
         genre_train_openmic, genre_test_openmic = genre_train_final, genre_test_final   # 14581, 4911
 
@@ -397,15 +384,21 @@ class deem():
                 X_test_clf  = Sampler.transform(X_test_clf)
 
             ############### LDA ###############
-            # For global bias correction
-            X_train_conca = np.vstack((X_train_inst_irmas, X_train_inst_openmic))  # (1252, )
-            genre_train_conca = np.hstack((genre_train_inst_irmas, genre_train_inst_openmic))   
-            # # For class-wise bias correction
-            # X_train_conca = np.vstack((X_train_inst_irmas_true, X_train_inst_openmic_true))  
-            # genre_train_conca = np.hstack((genre_train_inst_irmas_true, genre_train_inst_openmic_true))
+            if self.add_info == 'global':
+                # For global bias correction
+                X_train_conca = np.vstack((X_train_inst_irmas, X_train_inst_openmic))  # (1252, )
+                genre_train_conca = np.hstack((genre_train_inst_irmas, genre_train_inst_openmic))   
+                Y_A = np.zeros(len(X_train_inst_irmas))
+                Y_B = np.ones(len(X_train_inst_openmic))
+                
+            else: # self.add_info == 'classwise'
+                # For class-wise bias correction
+                X_train_conca = np.vstack((X_train_inst_irmas[:len(X_train_inst_irmas_true)], 
+                                        X_train_inst_openmic[:len(X_train_inst_openmic_true)]))  
+                genre_train_conca = np.hstack((genre_train_inst_irmas_true, genre_train_inst_openmic_true))
+                Y_A = np.zeros(len(X_train_inst_irmas_true))
+                Y_B = np.ones(len(X_train_inst_openmic_true))
 
-            Y_A = np.zeros(len(X_train_inst_irmas))
-            Y_B = np.ones(len(X_train_inst_openmic))
             Y_conca = np.hstack((Y_A, Y_B))
 
             if 'lda' in self.debias_method and '-m' in self.debias_method:
@@ -478,10 +471,12 @@ class deem():
                                                         columns=self.result_all.columns), ignore_index=True)
 
         if train_set == test_set and (self.debias_method == '' or self.debias_method == '-k'):
-            with open(os.path.join(self.base_dir, 'models/models_' + train_set + '_' + self.embedding + self.debias_method + '.pickle'), 'wb') as fdesc:
+            with open(os.path.join(self.base_dir, 'models', self.add_info, 'models_' + train_set + '_' + self.embedding + 
+                                   self.debias_method + '.pickle'), 'wb') as fdesc:
                 pickle.dump(globals()['models_'+train_set], fdesc)
         elif train_set == test_set and 'lda' in self.debias_method:
-            with open(os.path.join(self.base_dir, 'models/LDAcoef_' + train_set + '_' + self.embedding + self.debias_method + '.pickle'), 'wb') as fdesc:
+            with open(os.path.join(self.base_dir, 'models', self.add_info, 'LDAcoef_' + train_set + '_' + self.embedding + 
+                                   self.debias_method + '.pickle'), 'wb') as fdesc:
                 pickle.dump(globals()['LDAcoef_'+train_set], fdesc) 
 
 
@@ -498,6 +493,7 @@ class deem():
         num: int 
             target number of samples
         """
+        
         random.seed(self.param_grid['random_state'])
 
         feature_all = feature[0,:]   # (294, )
