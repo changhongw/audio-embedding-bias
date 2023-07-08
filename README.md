@@ -30,7 +30,7 @@ Download [IRMAS](https://www.upf.edu/web/mtg/irmas) and [OpenMIC](https://zenodo
 
 ## Pre-trained embeddings
 
-Extract [VGGish](https://github.com/tensorflow/models/tree/master/research/audioset/vggish), [OpenL3](https://github.com/marl/openl3), and [YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet) embeddings for both datasets. Or use our [extracted pre-trained embeddings]() directly.
+Extract [VGGish](https://github.com/tensorflow/models/tree/master/research/audioset/vggish), [OpenL3](https://github.com/marl/openl3), and [YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet) embeddings for both datasets. Or use our [extracted pre-trained embeddings](https://zenodo.org/record/8126908) directly.
 
 ## Bias correction
 
