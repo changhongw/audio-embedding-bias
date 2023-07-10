@@ -10,7 +10,7 @@ Changhong Wang, Brian McFee, and Gaël Richard. "**Transfer Learning and Bias Co
 
 - [Installation](#installation)
 - [Datasets](#datasets)
-- [Pre-trained embeddings](#pre-trained-audio-embeddings)
+- [Pre-trained audio embeddings](#pre-trained-audio-embeddings)
 - [Bias correction](#bias-correction)
 - [Contact](#contact)
 - [Cite](#cite)
