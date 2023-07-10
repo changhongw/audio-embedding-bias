@@ -19,7 +19,7 @@ Changhong Wang, Brian McFee, and Gaël Richard. "**Transfer Learning and Bias Co
 We recommend using Conda environment:
 
 ```sh
-git clone https://github.com/bmcfee/embedding-bias.git
+git clone https://github.com/changhongw/audio-embedding-bias.git
 conda env create -f environment.yml
 conda activate embedding-bias
 ```
