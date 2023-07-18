@@ -2,7 +2,7 @@
 
 Implementation of different bias correction methods for pretrained audio embeddings proposed in the following paper:
 
-Changhong Wang, Brian McFee, and Gaël Richard. "**Transfer Learning and Bias Correction with Pre-trained Audio Embeddings**". _Proceedings of the [International Society for Music Information Retrieval (ISMIR) Conference](https://ismir2023.ismir.net/)_, 2023. 
+Changhong Wang, Gaël Richard, and Brian McFee. "**Transfer Learning and Bias Correction with Pre-trained Audio Embeddings**". _Proceedings of the [International Society for Music Information Retrieval (ISMIR) Conference](https://ismir2023.ismir.net/)_, 2023. 
 
 (Ps: deem in `deem.py` is an acronym for "**de**biasing **em**beddings")
 
@@ -49,11 +49,11 @@ For any questions, support, or inquiries, please feel free to contact [changhong
 
 Please cite the following paper if you use the code provided in this repository.
 
- > Changhong Wang, Brian McFee, and Gaël Richard. "Transfer Learning and Bias Correction with Pre-trained Audio Embeddings". _Proceedings of the International Society for Music Information Retrieval (ISMIR) Conference_, 2023. 
+ > Changhong Wang, Gaël Richard, and Brian McFee. "Transfer Learning and Bias Correction with Pre-trained Audio Embeddings". _Proceedings of the International Society for Music Information Retrieval (ISMIR) Conference_, 2023. 
 
 ```bibtex
 @inproceedings{wang2023bias,
-    author = {Changhong Wang and Brian McFee and Gaël Richard},
+    author = {Changhong Wang and Gaël Richard and Brian McFee},
     title = {Transfer Learning and Bias Correction with Pre-trained Audio Embeddings},
     booktitle = {Proceedings of the International Society for Music Information Retrieval (ISMIR) Conference},
     year = 2023,
