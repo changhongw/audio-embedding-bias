@@ -52,7 +52,7 @@ Please cite the following paper if you use the code provided in this repository.
  > Changhong Wang, Gaël Richard, and Brian McFee. "Transfer Learning and Bias Correction with Pre-trained Audio Embeddings". _Proceedings of the International Society for Music Information Retrieval (ISMIR) Conference_, 2023. 
 
 ```bibtex
-@inproceedings{wang2023bias,
+@inproceedings{wang2023transfer,
     author = {Changhong Wang and Gaël Richard and Brian McFee},
     title = {Transfer Learning and Bias Correction with Pre-trained Audio Embeddings},
     booktitle = {Proceedings of the International Society for Music Information Retrieval (ISMIR) Conference},
