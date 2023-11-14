@@ -42,7 +42,7 @@ Run the note books in `notebooks`:
 - `3_cosine_similarity.ipynb`: calculate cosine similarity between dataset separation and instrument classification; check matrix rank for the case of multiple bias correction
 - `4_result_summary.ipynb`: summarize results from all bias correction methods
 
-## Contact
+## Note
 
 Thanks to Jayeon Yi, we notice two typos in the paper, i.e. the dimensionality of $W$ and $U$ in Equation (3). We correct them as following:
 - $W\in\mathbb{R}^{D\times G}$ => $U\in\mathbb{R}^{G\times D}$
