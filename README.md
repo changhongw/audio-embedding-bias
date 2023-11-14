@@ -45,8 +45,8 @@ Run the note books in `notebooks`:
 ## Note
 
 Thanks to Jayeon Yi, we notice two typos in the paper, i.e. the dimensionality of $W$ and $U$ in Equation (3). We correct them as following:
-- $W\in\mathbb{R}^{D\times G}$ => $U\in\mathbb{R}^{G\times D}$
-- $U\in\mathbb{R}^{D\times G}$ => $U\in\mathbb{R}^{G\times G}$
+- $W\in\mathbb{R}^{D\times G}$ -> $W\in\mathbb{R}^{G\times D}$
+- $U\in\mathbb{R}^{D\times G}$ -> $U\in\mathbb{R}^{G\times G}$
 
 ## Contact
 
