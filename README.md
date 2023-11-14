@@ -12,6 +12,7 @@ Changhong Wang, Gaël Richard, and Brian McFee. "**[Transfer Learning and Bias C
 - [Datasets](#datasets)
 - [Pre-trained embeddings](#pre-trained-embeddings)
 - [Bias correction](#bias-correction)
+- [Note](#note)
 - [Contact](#contact)
 - [Cite](#cite)
 
@@ -40,6 +41,12 @@ Run the note books in `notebooks`:
 - `2_debias_nonlinear.ipynb`: nonlinear bias correction (K, KLDA, mKLDA)
 - `3_cosine_similarity.ipynb`: calculate cosine similarity between dataset separation and instrument classification; check matrix rank for the case of multiple bias correction
 - `4_result_summary.ipynb`: summarize results from all bias correction methods
+
+## Contact
+
+Thanks to Jayeon Yi, we notice two typos in the paper, i.e. the dimensionality of $W$ and $U$ in Equation (3). We correct them as following:
+- $W\in\mathbb{R}^{D\times G}$ => $U\in\mathbb{R}^{G\times D}$
+- $U\in\mathbb{R}^{D\times G}$ => $U\in\mathbb{R}^{G\times G}$
 
 ## Contact
 
